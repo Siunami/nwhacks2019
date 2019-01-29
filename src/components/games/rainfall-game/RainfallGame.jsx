@@ -45,6 +45,14 @@ class RainfallGame extends Component {
     }
 
     componentDidMount() {
+        const audio = this.refs.rain;
+        audio.addEventListener('canplay', () => {
+            audio.play();
+        })
+        audio.addEventListener('ended', () => {
+            audio.play();
+        })
+
         const ctx = this.refs.raincanvas.getContext('2d');
 
         const kyp = new Image();
@@ -104,29 +112,20 @@ class RainfallGame extends Component {
     }
 
     checkCollision(o) {
-        let player = this.player;
-
-        let ox = o.pos.x;
-        let oy = o.pos.y;
-        let ow = o.poly.width;
-        let oh = o.poly.height;
-
-        let px = player.pos.x;
-        let py = player.pos.y;
-        let pw = player.poly.width;
-        let ph = player.poly.height;
-
-        if (ox >= px && ox + ow <= px + pw
-            && oy >= py && oy + oh <= py + ph) {
-            this.setState({
-                gameState: GameState.Finish,
-            })
-            const ctx = this.state.ctx;
-            ctx.clearRect(0, 0, WIDTH, HEIGHT);
-            return true;
-        } else {
-            return false;
-        }
+       const ctx = this.state.ctx;
+       let player = this.player;
+       for (let x = o.pos.x; x < o.pos.x + o.poly.width; x++) {
+           for (let y = o.pos.y; y < o.pos.y + o.poly.height; y++) {
+               if (player.getBoundingRectangle().contains(x, y)) {
+                   this.setState({
+                       gameState: GameState.Finish,
+                   })
+                   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+                   return true;
+               }
+           }
+       }
+       return false;
     }
 
     handlePlayerMovement(keys) {
@@ -214,14 +213,15 @@ class RainfallGame extends Component {
     render() {
         return (
             <div>
+                <audio ref="rain" src={require('../../../assets/Rain.mp3')} autoplay />
                 <div className="board"
                     style={{
                         width: WIDTH,
                         height: HEIGHT,
                         backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
                     }}>
-                    {this.state.gameState === GameState.Start && <Title title="Welcome to Raincouver!" msg="Press Enter to Start!" />}
-                    {this.state.gameState === GameState.Finish && <Finish title="Game Over!" msg="Turns out the rain was harmless..." />}
+                    {this.state.gameState === GameState.Start && <Title title="Dodge the rain!" controls="Use left and right arrow keys to move" msg="Press Enter to Start!" />}
+                    {this.state.gameState === GameState.Finish && <Finish title="Game Over!" msg="Turns out the rain was harmless..." /> && this.props.handleClick()}
                     <canvas className="rain-canvas" ref="raincanvas"
                         width={WIDTH} height={HEIGHT} />
                 </div>

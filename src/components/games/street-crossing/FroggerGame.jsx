@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 
 import InputManager from '../InputManager';
-import { default as Title, default as Finish } from '../GameText';
+import { default as Title } from '../GameText';
 import GameObject from '../GameObject';
 
 import './FroggerGame.css';
@@ -14,9 +14,11 @@ const GameState = {
     Start: 0,
     Playing: 1,
     Finish: 2,
+    Fail: 3,
 }
 
 var level = 1;
+var attempts = 1;
 
 const colors = ["green", "cyan", "red"];
 
@@ -50,6 +52,15 @@ class FroggerGame extends Component {
     }
 
     componentDidMount() {
+        const audio = this.refs.traffic;
+        audio.addEventListener('canplay', () => {
+            audio.play();
+        })
+        audio.addEventListener('ended', () => {
+            audio.play();
+        })
+
+
         const ctx = this.refs.carcanvas.getContext('2d');
 
         const kyp = new Image();
@@ -125,30 +136,24 @@ class FroggerGame extends Component {
     }
 
     checkCollision(o) {
-        let player = this.player;
-
-        let ox = o.pos.x;
-        let oy = o.pos.y;
-        let ow = o.poly.width;
-        let oh = o.poly.height;
-
-        let px = player.pos.x;
-        let py = player.pos.y;
-        let pw = player.poly.width;
-        let ph = player.poly.height;
-
-        const ctx = this.state.ctx;
-
-        if (ox >= px && ox + ow <= px + pw
-            && oy >= py && oy + oh <= py + ph) {
-            this.setState({
-                gameState: GameState.Finish,
-            })
-            ctx.clearRect(0, 0, WIDTH, HEIGHT);
-            return true;
-        } else {
-            return false;
-        }
+       const ctx = this.state.ctx;
+       let player = this.player;
+       for (let x = o.pos.x; x < o.pos.x + o.poly.width; x++) {
+           for (let y = o.pos.y; y < o.pos.y + o.poly.height; y++) {
+               if (player.getBoundingRectangle().contains(x, y)) {
+                   attempts++;
+                   this.setState({
+                       gameState: GameState.Fail,
+                       cars: [],
+                   })
+                   player.pos.x = 375;
+                   player.pos.y = 550;
+                   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+                   return true;
+               }
+           }
+       }
+       return false;
     }
 
     handlePlayerMovement(keys) {
@@ -166,6 +171,7 @@ class FroggerGame extends Component {
             player.pos.y = player.pos.y + player.velocity > 550 ? 550 : player.pos.y + player.velocity;
         }
     }
+
 
     repaint() {
         const keys = this.state.input.pressedKeys;
@@ -227,7 +233,13 @@ class FroggerGame extends Component {
             this.handlePlayerMovement(keys);
         }
 
-        if (gameState === GameState.Start && keys.enter) {
+        if ((gameState === GameState.Start || gameState === GameState.Fail) && keys.enter) {
+            if (attempts > 3) {
+                this.setState({
+                    gameState: GameState.Finish,
+                })
+                return;
+            }
             this.startGame();
         }
 
@@ -237,14 +249,16 @@ class FroggerGame extends Component {
     render() {
         return (
             <div>
+                <audio ref="traffic" src={require('../../../assets/Traffic.mp3')} autoplay />
                 <div className="board"
                     style={{
                         width: WIDTH,
                         height: HEIGHT,
                         backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
                     }}>
-                    {this.state.gameState === GameState.Start && <Title title="Cross the Street!" controls="Use directional keys to cross the street!" msg="Press Enter to Start!" />}
-                    {this.state.gameState === GameState.Finish && <Finish title="Game Over!" msg="Phew, made it across safely" />}
+                    {this.state.gameState === GameState.Start && <Title title="Highway Crossing!" controls="Use arrow keys to move" msg="Press Enter to Start!" />}
+                    {this.state.gameState === GameState.Fail ? attempts > 3 ? <Title title="It's Okay" controls="A shiny light leads you forward" msg="Press Enter to continue" /> : <Title title="Game Over!" controls="Kyp got in an accident!" msg="Press Enter to try again!" /> : true}
+                    {this.state.gameState === GameState.Finish && this.props.handleClick()}
                     <canvas className="car-canvas" ref="carcanvas"
                         width={WIDTH} height={HEIGHT} />
                 </div>
